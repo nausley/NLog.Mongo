@@ -1,18 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using MongoDB.Bson;
 
 namespace NLog.Mongo
 {
-    /// <summary>
-    /// Convert string values to Mongo <see cref="BsonValue"/>.
-    /// </summary>
     public static class MongoConvert
     {
-        /// <summary>Try to convert the string to a <see cref="BsonBoolean"/>.</summary>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="bsonValue">The BsonValue result.</param>
-        /// <returns><c>true</c> if the value was converted; otherwise <c>false</c>.</returns>
-        public static bool TryBoolean(this string value, out BsonValue bsonValue)
+        public static bool TryBoolean(string value, out BsonValue bsonValue)
         {
             bsonValue = new BsonBoolean(false);
 
@@ -40,11 +37,7 @@ namespace NLog.Mongo
             return true;
         }
 
-        /// <summary>Try to convert the string to a <see cref="BsonDateTime"/>.</summary>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="bsonValue">The BsonValue result.</param>
-        /// <returns><c>true</c> if the value was converted; otherwise <c>false</c>.</returns>
-        public static bool TryDateTime(this string value, out BsonValue bsonValue)
+        public static bool TryDateTime(string value, out BsonValue bsonValue)
         {
             bsonValue = null;
             if (value == null)
@@ -57,10 +50,6 @@ namespace NLog.Mongo
             return r;
         }
 
-        /// <summary>Try to convert the string to a <see cref="BsonDouble"/>.</summary>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="bsonValue">The BsonValue result.</param>
-        /// <returns><c>true</c> if the value was converted; otherwise <c>false</c>.</returns>
         public static bool TryDouble(this string value, out BsonValue bsonValue)
         {
             bsonValue = null;
@@ -74,10 +63,6 @@ namespace NLog.Mongo
             return r;
         }
 
-        /// <summary>Try to convert the string to a <see cref="BsonInt32"/>.</summary>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="bsonValue">The BsonValue result.</param>
-        /// <returns><c>true</c> if the value was converted; otherwise <c>false</c>.</returns>
         public static bool TryInt32(this string value, out BsonValue bsonValue)
         {
             bsonValue = null;
@@ -91,10 +76,6 @@ namespace NLog.Mongo
             return r;
         }
 
-        /// <summary>Try to convert the string to a <see cref="BsonInt64"/>.</summary>
-        /// <param name="value">The value to convert.</param>
-        /// <param name="bsonValue">The BsonValue result.</param>
-        /// <returns><c>true</c> if the value was converted; otherwise <c>false</c>.</returns>
         public static bool TryInt64(this string value, out BsonValue bsonValue)
         {
             bsonValue = null;

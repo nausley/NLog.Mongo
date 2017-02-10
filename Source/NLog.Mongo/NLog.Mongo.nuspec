@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>NLog.Mongo</id>
+    <version>3.0.0</version>
+    <authors>LoreSoft</authors>
+    <owners>LoreSoft</owners>
+    <licenseUrl>http://www.opensource.org/licenses/bsd-license.php</licenseUrl>
+    <projectUrl>https://github.com/loresoft/NLog.Mongo</projectUrl>
+    <iconUrl>http://nlog-project.org/N.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>NLog MongoDB target.</description>
+    <copyright>Copyright (c) 2014, LoreSoft</copyright>
+    <language>en-US</language>
+    <tags>NLog Logging MongoDB</tags>
+    <dependencies>
+      <dependency id="NLog" version="3.2.0.0" />
+      <dependency id="mongocsharpdriver" version="1.9.2" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\Release\v4.0\NLog.Mongo.*" target="lib\net40\" />
+    <file src="bin\Release\v4.5\NLog.Mongo.*" target="lib\net45\" />
+    <file src="**\*.cs" target="src" />
+    <file src="..\GlobalAssemblyInfo.cs" target="src" />
+  </files>
+</package>

@@ -24,7 +24,7 @@ namespace NLog.Mongo
     [Target("Mongo")]
     public class MongoTarget : Target
     {
-        private static readonly ConcurrentDictionary<string, IMongoCollection<BsonDocument>> _collectionCache = new ConcurrentDictionary<string, IMongoCollection<BsonDocument>>();
+        private static readonly ConcurrentDictionary<string, MongoCollection> _collectionCache = new ConcurrentDictionary<string, MongoCollection>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MongoTarget"/> class.
@@ -55,6 +55,7 @@ namespace NLog.Mongo
         [ArrayParameter(typeof(MongoField), "property")]
         public IList<MongoField> Properties { get; private set; }
 
+
         /// <summary>
         /// Gets or sets the connection string name string.
         /// </summary>
@@ -84,13 +85,6 @@ namespace NLog.Mongo
         /// </value>
         public bool IncludeDefaults { get; set; }
 
-        /// <summary>
-        /// Gets or sets the name of the database.
-        /// </summary>
-        /// <value>
-        /// The name of the database.
-        /// </value>
-        public string DatabaseName { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the collection.
@@ -115,6 +109,7 @@ namespace NLog.Mongo
         /// The capped collection max items.
         /// </value>
         public long? CappedCollectionMaxItems { get; set; }
+
 
         /// <summary>
         /// Initializes the target. Can be used by inheriting classes
@@ -149,7 +144,7 @@ namespace NLog.Mongo
                 var documents = logEvents.Select(e => CreateDocument(e.LogEvent));
 
                 var collection = GetCollection();
-                collection.InsertMany(documents);
+                collection.InsertBatch(documents);
 
                 foreach (var ev in logEvents)
                     ev.Continuation(null);
@@ -179,7 +174,7 @@ namespace NLog.Mongo
             {
                 var document = CreateDocument(logEvent);
                 var collection = GetCollection();
-                collection.InsertOne(document);
+                collection.Insert(document);
             }
             catch (Exception ex)
             {
@@ -297,12 +292,12 @@ namespace NLog.Mongo
                 return null;
 
             value = value.Trim();
-
-            if (string.IsNullOrEmpty(field.BsonType)
+            
+            if (string.IsNullOrEmpty(field.BsonType) 
                 || string.Equals(field.BsonType, "String", StringComparison.OrdinalIgnoreCase))
                 return new BsonString(value);
 
-
+            
             BsonValue bsonValue;
             if (string.Equals(field.BsonType, "Boolean", StringComparison.OrdinalIgnoreCase)
                 && MongoConvert.TryBoolean(value, out bsonValue))
@@ -315,11 +310,11 @@ namespace NLog.Mongo
             if (string.Equals(field.BsonType, "Double", StringComparison.OrdinalIgnoreCase)
                 && MongoConvert.TryDouble(value, out bsonValue))
                 return bsonValue;
-
+            
             if (string.Equals(field.BsonType, "Int32", StringComparison.OrdinalIgnoreCase)
                 && MongoConvert.TryInt32(value, out bsonValue))
                 return bsonValue;
-
+            
             if (string.Equals(field.BsonType, "Int64", StringComparison.OrdinalIgnoreCase)
                 && MongoConvert.TryInt64(value, out bsonValue))
                 return bsonValue;
@@ -327,12 +322,12 @@ namespace NLog.Mongo
             return new BsonString(value);
         }
 
-        private IMongoCollection<BsonDocument> GetCollection()
+        private MongoCollection GetCollection()
         {
             // cache mongo collection based on target name.
-            string key = string.Format("k|{0}|{1}|{2}",
-                ConnectionName ?? string.Empty,
-                ConnectionString ?? string.Empty,
+            string key = string.Format("k|{0}|{1}|{2}", 
+                ConnectionName ?? string.Empty, 
+                ConnectionString ?? string.Empty, 
                 CollectionName ?? string.Empty);
 
             return _collectionCache.GetOrAdd(key, k =>
@@ -344,11 +339,10 @@ namespace NLog.Mongo
                 var database = server.GetDatabase(DatabaseName ?? "NLog");
 
                 string collectionName = CollectionName ?? "Log";
+
                 if (CappedCollectionSize.HasValue && !database.CollectionExists(collectionName))
                 {
-                // create capped
-                var options = new CreateCollectionOptions
-                {
+                    // create capped
                     var options = CollectionOptions
                         .SetCapped(true)
                         .SetMaxSize(CappedCollectionSize.Value);
@@ -356,9 +350,10 @@ namespace NLog.Mongo
                     if (CappedCollectionMaxItems.HasValue)
                         options.SetMaxDocuments(CappedCollectionMaxItems.Value);
 
-                database.CreateCollection(collectionName, options);
+                    database.CreateCollection(collectionName, options);
+                }
 
-                return database.GetCollection<BsonDocument>(collectionName);
+                return database.GetCollection(collectionName);
             });
         }
 
@@ -366,27 +361,20 @@ namespace NLog.Mongo
         private static string GetConnectionString(string connectionName)
         {
             if (connectionName == null)
-                throw new ArgumentNullException(nameof(connectionName));
+                throw new ArgumentNullException("connectionName");
 
             var settings = ConfigurationManager.ConnectionStrings[connectionName];
             if (settings == null)
-                throw new NLogConfigurationException($"No connection string named '{connectionName}' could be found in the application configuration file.");
+                throw new NLogConfigurationException(
+                    string.Format("No connection string named '{0}' could be found in the application configuration file.", connectionName));
 
             string connectionString = settings.ConnectionString;
             if (string.IsNullOrEmpty(connectionString))
-                throw new NLogConfigurationException($"The connection string '{connectionName}' in the application's configuration file does not contain the required connectionString attribute.");
+                throw new NLogConfigurationException(
+                    string.Format("The connection string '{0}' in the application's configuration file does not contain the required connectionString attribute.", connectionName));
 
             return settings.ConnectionString;
         }
 
-        private static bool CollectionExists(IMongoDatabase database, string collectionName)
-        {
-            var options = new ListCollectionsOptions
-            {
-                Filter = Builders<BsonDocument>.Filter.Eq("name", collectionName)
-            };
-
-            return database.ListCollections(options).ToEnumerable().Any();
-        }
     }
 }

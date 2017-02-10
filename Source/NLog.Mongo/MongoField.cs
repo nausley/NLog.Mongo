@@ -14,8 +14,7 @@ namespace NLog.Mongo
         /// <summary>
         /// Initializes a new instance of the <see cref="MongoField"/> class.
         /// </summary>
-        public MongoField() 
-            : this(null, null, "String")
+        public MongoField() : this(null, null, "String")
         {
         }
 
@@ -30,11 +29,11 @@ namespace NLog.Mongo
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MongoField" /> class.
+        /// Initializes a new instance of the <see cref="MongoField"/> class.
         /// </summary>
         /// <param name="name">The name.</param>
         /// <param name="layout">The layout.</param>
-        /// <param name="bsonType">The bson type.</param>
+        /// <param name="type">The type.</param>
         public MongoField(string name, Layout layout, string bsonType)
         {
             Name = name;
