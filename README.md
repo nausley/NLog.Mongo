@@ -4,6 +4,8 @@ Writes NLog messages to MongoDB.
 
 [![Build status](https://ci.appveyor.com/api/projects/status/papk0yl4xf7agyxt)](https://ci.appveyor.com/project/LoreSoft/nlog-mongo)
 
+[![NuGet Version](https://img.shields.io/nuget/v/NLog.Mongo.svg?style=flat-square)](https://www.nuget.org/packages/NLog.Mongo/) 
+
 ##Download
 
 The NLog.Mongo library is available on nuget.org via package name `NLog.Mongo`.
@@ -24,28 +26,30 @@ In your Package Manager settings add the following package source for developmen
 
 ##Configuration Syntax
 
-    <extensions>
-      <add assembly="NLog.Mongo"/>
-    </extensions>
+```xml
+<extensions>
+  <add assembly="NLog.Mongo"/>
+</extensions>
 
-    <targets>
-      <target xsi:type="Mongo"
-              name="String"
-              connectionName="String"
-              connectionString="String"
-              collectionName="String"
-              cappedCollectionSize="Long"
-              cappedCollectionMaxItems="Long"
-              includeDefaults="Boolean">
-        
-        <!-- repeated --> 
-        <field name="String" layout="Layout" bsonType="Boolean|DateTime|Double|Int32|Int64|String"  />
-        
-        <!-- repeated --> 
-        <property name="String" layout="Layout" bsonType="Boolean|DateTime|Double|Int32|Int64|String"  />
-      </target>
-    </targets>
-
+<targets>
+  <target xsi:type="Mongo"
+          name="String"
+          connectionName="String"
+          connectionString="String"
+          collectionName="String"
+          cappedCollectionSize="Long"
+          cappedCollectionMaxItems="Long"
+          databaseName="String"
+          includeDefaults="Boolean">
+    
+    <!-- repeated --> 
+    <field name="String" layout="Layout" bsonType="Boolean|DateTime|Double|Int32|Int64|String"  />
+    
+    <!-- repeated --> 
+    <property name="String" layout="Layout" bsonType="Boolean|DateTime|Double|Int32|Int64|String"  />
+  </target>
+</targets>
+```
 
 ##Parameters
 
@@ -58,6 +62,8 @@ _name_ - Name of the target.
 _connectionName_ - The name of the connection string to get from the config file. 
 
 _connectionString_ - Connection string. When provided, it overrides the values specified in connectionName. 
+
+_databaseName_ - The name of the database, overrides connection string database.
 
 ###Collection Options
 _collectionName_ - The name of the MongoDB collection to write logs to.  
@@ -80,80 +86,88 @@ _property_ - Specifies a dictionary property on the Properties field. There can 
 
 ####NLog.config target
 
-    <target xsi:type="Mongo"
-            name="mongoDefault"
-            connectionString="mongodb://localhost/Logging"
-            collectionName="DefaultLog"
-            cappedCollectionSize="26214400">
-      <property name="ThreadID" layout="${threadid}" bsonType="Int32" />
-      <property name="ThreadName" layout="${threadname}" />
-      <property name="ProcessID" layout="${processid}" bsonType="Int32" />
-      <property name="ProcessName" layout="${processname:fullName=true}" />
-      <property name="UserName" layout="${windows-identity}" />
-    </target>
+```xml
+<target xsi:type="Mongo"
+        name="mongoDefault"
+        connectionString="mongodb://localhost/Logging"
+        collectionName="DefaultLog"
+        cappedCollectionSize="26214400">
+  <property name="ThreadID" layout="${threadid}" bsonType="Int32" />
+  <property name="ThreadName" layout="${threadname}" />
+  <property name="ProcessID" layout="${processid}" bsonType="Int32" />
+  <property name="ProcessName" layout="${processname:fullName=true}" />
+  <property name="UserName" layout="${windows-identity}" />
+</target>
+```
 
 ####Default Output JSON
 
-    {
-        "_id" : ObjectId("5184219b545eb455aca34390"),
-        "Date" : ISODate("2013-05-03T20:44:11Z"),
-        "Level" : "Error",
-        "Logger" : "NLog.Mongo.ConsoleTest.Program",
-        "Message" : "Error reading file 'blah.txt'.",
-        "Exception" : {
-            "Message" : "Could not find file 'C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\blah.txt'.",
-            "Text" : "System.IO.FileNotFoundException: Could not find file 'C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\blah.txt' ...",
-            "Type" : "System.IO.FileNotFoundException",
-            "Source" : "mscorlib",
-            "MethodName" : "WinIOError",
-            "ModuleName" : "mscorlib",
-            "ModuleVersion" : "4.0.0.0"
-        },
-        "Properties" : {
-            "ThreadID" : 10,
-            "ProcessID" : 21932,
-            "ProcessName" : "C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\NLog.Mongo.ConsoleTest.exe",
-            "UserName" : "pwelter",
-            "Test" : "ErrorWrite",
-            "CallerMemberName" : "Main",
-            "CallerFilePath" : "c:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\Program.cs",
-            "CallerLineNumber" : "43"
-        }
+```JSON
+{
+    "_id" : ObjectId("5184219b545eb455aca34390"),
+    "Date" : ISODate("2013-05-03T20:44:11Z"),
+    "Level" : "Error",
+    "Logger" : "NLog.Mongo.ConsoleTest.Program",
+    "Message" : "Error reading file 'blah.txt'.",
+    "Exception" : {
+        "Message" : "Could not find file 'C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\blah.txt'.",
+        "Text" : "System.IO.FileNotFoundException: Could not find file 'C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\blah.txt' ...",
+        "Type" : "System.IO.FileNotFoundException",
+        "Source" : "mscorlib",
+        "MethodName" : "WinIOError",
+        "ModuleName" : "mscorlib",
+        "ModuleVersion" : "4.0.0.0"
+    },
+    "Properties" : {
+        "ThreadID" : 10,
+        "ProcessID" : 21932,
+        "ProcessName" : "C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\NLog.Mongo.ConsoleTest.exe",
+        "UserName" : "pwelter",
+        "Test" : "ErrorWrite",
+        "CallerMemberName" : "Main",
+        "CallerFilePath" : "c:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\Program.cs",
+        "CallerLineNumber" : "43"
     }
-
+}
+```
 
 ###Complete Custom Document
 
 ####NLog.config target
 
-    <target xsi:type="Mongo"
-            name="mongoCustom"
-            includeDefaults="false"
-            connectionString="mongodb://localhost/Logging"
-            collectionName="CustomLog"
-            cappedCollectionSize="26214400">
-      <field name="Date" layout="${date}" bsonType="DateTime" />
-      <field name="Level" layout="${level}"/>
-      <field name="Message" layout="${message}" />
-      <field name="Logger" layout="${logger}"/>
-      <field name="Exception" layout="${exception:format=tostring}" />
-      <field name="ThreadID" layout="${threadid}" bsonType="Int32" />
-      <field name="ThreadName" layout="${threadname}" />
-      <field name="ProcessID" layout="${processid}" bsonType="Int32" />
-      <field name="ProcessName" layout="${processname:fullName=true}" />
-      <field name="UserName" layout="${windows-identity}" />
-    </target>
+```xml
+<target xsi:type="Mongo"
+        name="mongoCustom"
+        includeDefaults="false"
+        connectionString="mongodb://localhost"
+        collectionName="CustomLog"
+        databaseName="Logging"
+        cappedCollectionSize="26214400">
+  <field name="Date" layout="${date}" bsonType="DateTime" />
+  <field name="Level" layout="${level}"/>
+  <field name="Message" layout="${message}" />
+  <field name="Logger" layout="${logger}"/>
+  <field name="Exception" layout="${exception:format=tostring}" />
+  <field name="ThreadID" layout="${threadid}" bsonType="Int32" />
+  <field name="ThreadName" layout="${threadname}" />
+  <field name="ProcessID" layout="${processid}" bsonType="Int32" />
+  <field name="ProcessName" layout="${processname:fullName=true}" />
+  <field name="UserName" layout="${windows-identity}" />
+</target>
+```
 
 ####Custom Output JSON
 
-    {
-        "_id" : ObjectId("5187abc2545eb467ecce9184"),
-        "Date" : ISODate("2015-02-02T17:31:20.728Z"),
-        "Level" : "Debug",
-        "Message" : "Sample debug message",
-        "Logger" : "NLog.Mongo.ConsoleTest.Program",
-        "ThreadID" : 9,
-        "ProcessID" : 26604,
-        "ProcessName" : "C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\v4.5\\NLog.Mongo.ConsoleTest.exe",
-        "UserName" : "pwelter"
-    }
+```JSON
+{
+    "_id" : ObjectId("5187abc2545eb467ecce9184"),
+    "Date" : ISODate("2015-02-02T17:31:20.728Z"),
+    "Level" : "Debug",
+    "Message" : "Sample debug message",
+    "Logger" : "NLog.Mongo.ConsoleTest.Program",
+    "ThreadID" : 9,
+    "ProcessID" : 26604,
+    "ProcessName" : "C:\\Projects\\github\\NLog.Mongo\\Source\\NLog.Mongo.ConsoleTest\\bin\\Debug\\v4.5\\NLog.Mongo.ConsoleTest.exe",
+    "UserName" : "pwelter"
+}
+```

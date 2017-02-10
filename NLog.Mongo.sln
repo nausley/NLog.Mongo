@@ -1,23 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30501.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NLog.Mongo.netfx45", "NLog.Mongo\NLog.Mongo.netfx45.csproj", "{97D08F95-F710-4AF1-A49D-D2CFF770E764}"
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "NLog.Mongo", "src\NLog.Mongo\NLog.Mongo.xproj", "{97D08F95-F710-4AF1-A49D-D2CFF770E764}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NLog.Mongo.ConsoleTest.netfx45", "NLog.Mongo.ConsoleTest\NLog.Mongo.ConsoleTest.netfx45.csproj", "{10901848-3067-4CB7-8B45-5FB1903CF57D}"
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "NLog.Mongo.ConsoleTest", "test\NLog.Mongo.ConsoleTest\NLog.Mongo.ConsoleTest.xproj", "{10901848-3067-4CB7-8B45-5FB1903CF57D}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{FFB8C510-F17B-4E7C-A049-82632065F964}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{731BD350-1930-4CD1-B70E-60F4C5D9C192}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{061EE777-D34B-43A8-AEFD-4557D39A9C94}"
 	ProjectSection(SolutionItems) = preProject
-		.nuget\NuGet.Config = .nuget\NuGet.Config
-		.nuget\NuGet.exe = .nuget\NuGet.exe
-		.nuget\NuGet.targets = .nuget\NuGet.targets
-	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8B9F6041-4767-4A4E-90DA-2C10E56A4EA8}"
-	ProjectSection(SolutionItems) = preProject
-		..\Master.proj = ..\Master.proj
-		..\README.md = ..\README.md
+		appveyor.yml = appveyor.yml
+		bootstrap.cmd = bootstrap.cmd
+		Master.proj = Master.proj
 	EndProjectSection
 EndProject
 Global
@@ -37,5 +33,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{10901848-3067-4CB7-8B45-5FB1903CF57D} = {731BD350-1930-4CD1-B70E-60F4C5D9C192}
 	EndGlobalSection
 EndGlobal
