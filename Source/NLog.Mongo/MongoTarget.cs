@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Driver;
-using MongoDB.Driver.Builders;
 using NLog.Common;
 using NLog.Config;
 using NLog.Targets;
@@ -24,7 +22,9 @@ namespace NLog.Mongo
     [Target("Mongo")]
     public class MongoTarget : Target
     {
-        private static readonly ConcurrentDictionary<string, MongoCollection> _collectionCache = new ConcurrentDictionary<string, MongoCollection>();
+        
+        private static readonly ConcurrentDictionary<string, IMongoCollection<BsonDocument>> CollectionCache = new ConcurrentDictionary<string, IMongoCollection<BsonDocument>>();
+        private static IMongoDatabase _mongoDatabase;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MongoTarget"/> class.
@@ -35,6 +35,10 @@ namespace NLog.Mongo
             Properties = new List<MongoField>();
             IncludeDefaults = true;
             DatabaseName = "NLog";
+            UseAuth = false;
+            UseSsl = false;
+            UseX509 = false;
+            ReplicaSetName = "";
         }
 
         /// <summary>
@@ -44,7 +48,7 @@ namespace NLog.Mongo
         /// The fields.
         /// </value>
         [ArrayParameter(typeof(MongoField), "field")]
-        public IList<MongoField> Fields { get; private set; }
+        public IList<MongoField> Fields { get; }
 
         /// <summary>
         /// Gets the properties collection.
@@ -53,8 +57,10 @@ namespace NLog.Mongo
         /// The properties.
         /// </value>
         [ArrayParameter(typeof(MongoField), "property")]
-        public IList<MongoField> Properties { get; private set; }
+        public IList<MongoField> Properties { get; }
 
+
+        #region Properties
 
         /// <summary>
         /// Gets or sets the connection string name string.
@@ -85,7 +91,6 @@ namespace NLog.Mongo
         /// </value>
         public bool IncludeDefaults { get; set; }
 
-
         /// <summary>
         /// Gets or sets the name of the collection.
         /// </summary>
@@ -110,6 +115,52 @@ namespace NLog.Mongo
         /// </value>
         public long? CappedCollectionMaxItems { get; set; }
 
+        /// <summary>
+        /// Gets or Sets ReplicaSetName
+        /// </summary>
+        public string ReplicaSetName { get; set; }
+        
+        /// <summary>
+        /// Use Mongo Authentication to access database (system level)
+        /// </summary>
+        public bool UseAuth { get; set; }
+        
+        /// <summary>
+        /// Use SSL Connection
+        /// </summary>
+        public bool UseSsl { get; set; }
+        
+        /// <summary>
+        /// Use SSL x509 Authentication Certifications
+        /// </summary>
+        public bool UseX509 { get; set; }
+        
+        /// <summary>
+        /// Used for basic user/password Authentication
+        /// </summary>
+        public string AuthDatabase { get; set; }
+        
+        /// <summary>
+        /// Get or Set UserName, also used for DN when used with UseX509 Authentication
+        /// </summary>
+        public string UserName { get; set; }
+        
+        /// <summary>
+        /// Set User Password
+        /// </summary>
+        public string UserPassword { private get; set; }
+        
+        /// <summary>
+        /// Set ClientCertPfx User Certification for SSL and X509
+        /// </summary>
+        public string ClientCertPfx { private get; set; }
+
+        /// <summary>
+        /// Set ClientCertPassword (if needed)
+        /// </summary>
+        public string ClientCertPassword { private get; set; }
+
+        #endregion
 
         /// <summary>
         /// Initializes the target. Can be used by inheriting classes
@@ -118,13 +169,51 @@ namespace NLog.Mongo
         /// <exception cref="NLog.NLogConfigurationException">Can not resolve MongoDB ConnectionString. Please make sure the ConnectionString property is set.</exception>
         protected override void InitializeTarget()
         {
+            string replicaSet;
             base.InitializeTarget();
-
-            if (!string.IsNullOrEmpty(ConnectionName))
-                ConnectionString = GetConnectionString(ConnectionName);
+//            if (!string.IsNullOrEmpty(ConnectionName))
+//                ConnectionString = GetConnectionString(ConnectionName);
 
             if (string.IsNullOrEmpty(ConnectionString))
                 throw new NLogConfigurationException("Can not resolve MongoDB ConnectionString. Please make sure the ConnectionString property is set.");
+
+            var mongoServers = GetDbServerAddress(ConnectionString, ReplicaSetName, out replicaSet);
+            var mongoSettings = new MongoClientSettings
+            {
+                Servers = mongoServers,
+                UseSsl = false,
+                ConnectionMode = ConnectionMode.Automatic,
+                ApplicationName = "NLog.Mongo"
+            };
+
+            if (UseSsl)
+            {
+                var cert = new X509Certificate2(ClientCertPfx, ClientCertPassword);
+                var sslSetting = new SslSettings
+                {
+                    ClientCertificates = new[] { cert },
+                    CheckCertificateRevocation = true,
+                    ServerCertificateValidationCallback = (sender, certificate, chain, errors) => true,
+                    ClientCertificateSelectionCallback = (sender, host, certificates, certificate, issuers) => cert
+                };
+                mongoSettings.UseSsl = true;
+                mongoSettings.VerifySslCertificate = true;
+                mongoSettings.SslSettings = sslSetting;
+            }
+
+            if (replicaSet != string.Empty)
+            {
+                mongoSettings.ReplicaSetName = replicaSet;
+                mongoSettings.ConnectionMode = ConnectionMode.ReplicaSet;
+            }
+
+            if (UseAuth && UserName != string.Empty)
+                mongoSettings.Credentials = UseX509
+                    ? new[] { MongoCredential.CreateMongoX509Credential(UserName) }
+                    : new[] { MongoCredential.CreateCredential(AuthDatabase, UserName, UserPassword) };
+
+            var dbClient = new MongoClient(mongoSettings);
+            _mongoDatabase = dbClient.GetDatabase(DatabaseName ?? "NLog");
 
         }
 
@@ -144,7 +233,7 @@ namespace NLog.Mongo
                 var documents = logEvents.Select(e => CreateDocument(e.LogEvent));
 
                 var collection = GetCollection();
-                collection.InsertBatch(documents);
+                collection.InsertMany(documents);
 
                 foreach (var ev in logEvents)
                     ev.Continuation(null);
@@ -174,7 +263,7 @@ namespace NLog.Mongo
             {
                 var document = CreateDocument(logEvent);
                 var collection = GetCollection();
-                collection.Insert(document);
+                collection.InsertOne(document);
             }
             catch (Exception ex)
             {
@@ -185,6 +274,8 @@ namespace NLog.Mongo
             }
         }
 
+
+        #region Private Method Section
 
         private BsonDocument CreateDocument(LogEventInfo logEvent)
         {
@@ -284,7 +375,6 @@ namespace NLog.Mongo
             return document;
         }
 
-
         private BsonValue GetValue(MongoField field, LogEventInfo logEvent)
         {
             var value = field.Layout.Render(logEvent);
@@ -322,59 +412,90 @@ namespace NLog.Mongo
             return new BsonString(value);
         }
 
-        private MongoCollection GetCollection()
+        private static async Task<bool> CollectionExistsAsync(string collectionName)
+        {
+            var filter = new BsonDocument("name", collectionName);
+            //filter by collection name
+            var collections = await _mongoDatabase.ListCollectionsAsync(new ListCollectionsOptions { Filter = filter });
+            //check for existence
+            return await collections.AnyAsync();
+        }
+
+        private IMongoCollection<BsonDocument> GetCollection()
         {
             // cache mongo collection based on target name.
-            string key = string.Format("k|{0}|{1}|{2}", 
+            var key = string.Format("k|{0}|{1}|{2}", 
                 ConnectionName ?? string.Empty, 
                 ConnectionString ?? string.Empty, 
                 CollectionName ?? string.Empty);
 
-            return _collectionCache.GetOrAdd(key, k =>
+            return CollectionCache.GetOrAdd(key, k =>
             {
                 // create collection
-                var mongoUrl = new MongoUrl(ConnectionString);
-                var client = new MongoClient(mongoUrl);
-                var server = client.GetServer();
-                var database = server.GetDatabase(DatabaseName ?? "NLog");
+//                var mongoUrl = new MongoUrl(ConnectionString);
+//                var client = new MongoClient(mongoUrl);
+////                var server = client.GetServer();
+//                _mongoDatabase = client.GetDatabase(DatabaseName ?? "NLog");
+                var collectionName = CollectionName ?? "Log";
 
-                string collectionName = CollectionName ?? "Log";
-
-                if (CappedCollectionSize.HasValue && !database.CollectionExists(collectionName))
+                if (!CappedCollectionSize.HasValue || CollectionExistsAsync(collectionName).Result)
+                    return _mongoDatabase.GetCollection<BsonDocument>(collectionName);
+                var options = new CreateCollectionOptions
                 {
-                    // create capped
-                    var options = CollectionOptions
-                        .SetCapped(true)
-                        .SetMaxSize(CappedCollectionSize.Value);
+                    Capped = true,
+                    MaxSize = CappedCollectionSize ?? 26214400
+                };
+                if (CappedCollectionMaxItems.HasValue) options.MaxDocuments = CappedCollectionMaxItems;
 
-                    if (CappedCollectionMaxItems.HasValue)
-                        options.SetMaxDocuments(CappedCollectionMaxItems.Value);
+                _mongoDatabase.CreateCollection(collectionName, options);
 
-                    database.CreateCollection(collectionName, options);
-                }
-
-                return database.GetCollection(collectionName);
+                return _mongoDatabase.GetCollection<BsonDocument>(collectionName);
             });
         }
 
 
-        private static string GetConnectionString(string connectionName)
+//        private static string GetConnectionString(string connectionName)
+//        {
+//            if (connectionName == null)
+//                throw new ArgumentNullException("connectionName");
+//
+//            var settings = ConfigurationManager.ConnectionStrings[connectionName];
+//            if (settings == null)
+//                throw new NLogConfigurationException(
+//                    $"No connection string named '{connectionName}' could be found in the application configuration file.");
+//
+//            var connectionString = settings.ConnectionString;
+//            if (string.IsNullOrEmpty(connectionString))
+//                throw new NLogConfigurationException(
+//                    $"The connection string '{connectionName}' in the application's configuration file does not contain the required connectionString attribute.");
+//
+//            return settings.ConnectionString;
+//        }
+
+        private static IEnumerable<MongoServerAddress> GetDbServerAddress(string connectionString, string replicaSetIn, out string replicaSet)
         {
-            if (connectionName == null)
-                throw new ArgumentNullException("connectionName");
+            if (connectionString == string.Empty)
+            {
+                replicaSet = "";
+                return null;
+            }
 
-            var settings = ConfigurationManager.ConnectionStrings[connectionName];
-            if (settings == null)
-                throw new NLogConfigurationException(
-                    string.Format("No connection string named '{0}' could be found in the application configuration file.", connectionName));
+            var split1 = connectionString.Split('/');
+            var addrList = split1[0] == "mongodb:" ? split1[2] : connectionString;
 
-            string connectionString = settings.ConnectionString;
-            if (string.IsNullOrEmpty(connectionString))
-                throw new NLogConfigurationException(
-                    string.Format("The connection string '{0}' in the application's configuration file does not contain the required connectionString attribute.", connectionName));
+            var rSplit = connectionString.Split('=');
+            replicaSet = rSplit.Length == 2 ? rSplit[1] : replicaSetIn;
 
-            return settings.ConnectionString;
+            var result = (from c in addrList.Split(',')
+                select c.Split(':')
+                into cSplit
+                let addr = cSplit[0]
+                let port = cSplit.Length == 2 ? Convert.ToInt32(cSplit[1]) : 27017
+                select new MongoServerAddress(addr, port)).ToList();
+
+            return result;
         }
+        #endregion
 
     }
 }
